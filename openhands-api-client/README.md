@@ -68,7 +68,6 @@ api.create_conversation_from_files(
 )
 ```
 
-```
 
 ## Environment Variables
 
