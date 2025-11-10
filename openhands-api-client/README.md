@@ -60,12 +60,21 @@ python llm_conversation.py new-conversation --prompt-file arch_conversation.j2 \
 From Python code:
 
 ```python
-from openhands-api-client.scripts.cloud_api import OpenHandsCloudAPI
+# Run this from the 'openhands-api-client' directory (or add it to sys.path)
+from scripts.cloud_api import OpenHandsCloudAPI
 api = OpenHandsCloudAPI()
 api.create_conversation_from_files(
-    "openhands-api-client/scripts/prompts/arch_conversation.j2",
+    "scripts/prompts/arch_conversation.j2",
     repository="owner/repo",
 )
+```
+
+Note: If you are running from elsewhere (e.g., repo root), adjust the path or compute an absolute path, for example:
+
+```python
+from pathlib import Path
+prompt_path = Path(__file__).resolve().parent / "scripts" / "prompts" / "arch_conversation.j2"
+# Use: str(prompt_path)
 ```
 
 
