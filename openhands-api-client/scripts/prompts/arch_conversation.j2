@@ -33,12 +33,9 @@ Output this structure:
 2) Module and interface sketch
    - Module boundaries, dependencies, and responsibilities
    - Public interfaces and data contracts (succinct)
-3) Migration plan
-   - Small, incremental steps; feature flags if needed
-   - Backward compatibility and rollback plan
-4) Implementation plan
+3) Implementation plan
    - Ordered steps (small PRs), test strategy, and observability checks
-5) Acceptance criteria
+4) Acceptance criteria
    - Objective signals the design works (tests, performance/metrics, user impact)
 
 When coding, touch only what is necessary. Keep changes localized and reversible. Prefer adding seams over invasive rewrites. Write tests alongside changes and measure success against acceptance criteria.
