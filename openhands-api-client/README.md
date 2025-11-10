@@ -94,7 +94,7 @@ curl -sS \
   -H "Authorization: Bearer $OPENHANDS_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "initial_user_msg": "Read https://github.com/All-Hands-AI/OpenHands/pull/10305. It fails CI, please fix."
+    "initial_user_msg": "Read https://github.com/OpenHands/OpenHands/pull/10305. It fails CI, please fix."
   }' \
   "$OPENHANDS_APP_BASE/api/conversations"
 ```
