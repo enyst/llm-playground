@@ -68,29 +68,7 @@ class OpenHandsCloudAPI:
     def get_recent_model(self, conversation_id: str) -> str | None:
         """Inspect a small recent window for model metadata and return first found."""
         payload = self.get_events(conversation_id, reverse=True, limit=20)
-        for e in payload.get('events', []):
-            # tool_call_metadata.model_response.model is most reliable
-            m = ((e.get('tool_call_metadata') or {}).get('model_response') or {}).get(
-                'model'
-            )
-            if isinstance(m, str):
-                return m
-            # fallback to common fields
-            for k in ('model', 'llm_model', 'provider_model', 'selected_model'):
-                v = e.get(k)
-                if isinstance(v, str):
-                    return v
-            meta = e.get('metadata') or e.get('meta') or {}
-            for k in ('model', 'llm_model', 'provider_model'):
-                v = meta.get(k)
-                if isinstance(v, str):
-                    return v
-            args = e.get('args') or {}
-            for k in ('model', 'llm_model'):
-                v = args.get(k)
-                if isinstance(v, str):
-                    return v
-        return None
+        return self._get_model_from_events(payload.get('events', []))
 
     def get_first_user_message(self, conversation_id: str) -> str | None:
         """Fetch earliest handful of events and return the first user message text if present."""
@@ -106,10 +84,13 @@ class OpenHandsCloudAPI:
     def get_early_model(self, conversation_id: str) -> str | None:
         """Inspect the earliest small window for the first model reference."""
         payload = self.get_events(conversation_id, start_id=0, limit=20)
-        for e in payload.get('events', []):
-            m = ((e.get('tool_call_metadata') or {}).get('model_response') or {}).get(
-                'model'
-            )
+        return self._get_model_from_events(payload.get('events', []))
+
+
+    def _get_model_from_events(self, events: list[dict[str, Any]]) -> str | None:
+        """Extract model name from a list of events, checking common locations."""
+        for e in events:
+            m = ((e.get('tool_call_metadata') or {}).get('model_response') or {}).get('model')
             if isinstance(m, str):
                 return m
             for k in ('model', 'llm_model', 'provider_model', 'selected_model'):
@@ -352,6 +333,6 @@ class OpenHandsCloudAPI:
         }
         data = {'body': comment}
 
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.post(url, headers=headers, json=data, timeout=30)
         response.raise_for_status()
         print(f'✅ Posted comment to GitHub issue #{issue_number}')

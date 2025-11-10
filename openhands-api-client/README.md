@@ -104,7 +104,7 @@ Response includes:
 - `conversation_status`
 
 You can compose a GUI link as:
-```
+```text
 $OPENHANDS_APP_BASE/conversations/{conversation_id}
 ```
 
