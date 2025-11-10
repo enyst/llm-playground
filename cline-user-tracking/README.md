@@ -1,8 +1,8 @@
 # Cline User Tracking Research
 
-This project investigates what user data the Cline project collects and how it is transmitted.
+This directory contains an evidence-backed analysis of what user data the Cline (VS Code extension) collects and how it is transmitted to Cline services.
 
-Deliverables:
-- research.md: full report with code evidence and links
+Files:
+- research.md — comprehensive report with categorized findings and pinned GitHub permalinks to code
 
-Status: in progress
+Status: complete
