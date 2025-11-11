@@ -35,6 +35,8 @@ python llm_conversation.py new-conversation
 Optional parameters:
 - `--repository owner/repo` - Git repository to work with
 - `--branch branch-name` - Git branch to use
+- `--prompt-file filename` - Choose a prompt template (e.g., `arch_conversation.j2`, `new_conversation.j2`)
+- `--custom-prompt "..."` - Provide a custom prompt (overrides `--prompt-file`)
 - `--poll` - Poll until conversation completes
 - `--api-key KEY` - Override OPENHANDS_API_KEY environment variable
 
@@ -45,6 +47,36 @@ Configure LLM settings and start a new conversation in one command:
 ```bash
 python llm_conversation.py configure-and-start --repository owner/repo --poll
 ```
+
+### Architect conversation (prompt file)
+
+To start a conversation with an architecture-focused prompt:
+
+```bash
+python llm_conversation.py new-conversation --prompt-file arch_conversation.j2 \
+  --repository owner/repo --branch main --poll
+```
+
+From Python code:
+
+```python
+# Run this from the 'openhands-api-client' directory (or add it to sys.path)
+from scripts.cloud_api import OpenHandsCloudAPI
+api = OpenHandsCloudAPI()
+api.create_conversation_from_files(
+    "scripts/prompts/arch_conversation.j2",
+    repository="owner/repo",
+)
+```
+
+Note: If you are running from elsewhere (e.g., repo root), adjust the path or compute an absolute path, for example:
+
+```python
+from pathlib import Path
+prompt_path = Path(__file__).resolve().parent / "scripts" / "prompts" / "arch_conversation.j2"
+# Use: str(prompt_path)
+```
+
 
 ## Environment Variables
 

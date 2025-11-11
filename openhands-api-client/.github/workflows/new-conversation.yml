@@ -23,6 +23,7 @@ on:
           - 'debug_issue.j2'
           - 'code_review.j2'
           - 'feature_implementation.j2'
+          - 'arch_conversation.j2'
       custom_prompt:
         description: 'Custom prompt text (overrides prompt file if provided)'
         required: false
