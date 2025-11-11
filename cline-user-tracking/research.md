@@ -41,6 +41,8 @@ Executive summary:
     - PostHogClientProvider.ts: [before_send filter for $exception](https://github.com/cline/cline/blob/ba98b44504d81ea2a261a7a18bf894b4893579c3/src/services/telemetry/providers/posthog/PostHogClientProvider.ts#L24-L61)
   - Feature flags are fetched via PostHog using the distinct id
     - PostHogFeatureFlagsProvider.ts: [getFeatureFlag/getFeatureFlagPayload](https://github.com/cline/cline/blob/ba98b44504d81ea2a261a7a18bf894b4893579c3/src/services/feature-flags/providers/PostHogFeatureFlagsProvider.ts#L31-L74)
+  - Webview PostHog (frontend): posthog-js is initialized only when telemetry is enabled; a temporary guard keeps it disabled; feature flags still work and identity is limited to distinctId/email/name
+    - CustomPostHogProvider.tsx: [isTelemetryEnabled=false guard and init](https://github.com/cline/cline/blob/ba98b44504d81ea2a261a7a18bf894b4893579c3/webview-ui/src/CustomPostHogProvider.tsx#L11-L31), [before_send and identify behavior](https://github.com/cline/cline/blob/ba98b44504d81ea2a261a7a18bf894b4893579c3/webview-ui/src/CustomPostHogProvider.tsx#L33-L73)
 
 - OpenTelemetry export (optional)
   - Controlled entirely by env vars; when enabled, events/metrics are exported to the configured OTLP endpoint (not set by default)
