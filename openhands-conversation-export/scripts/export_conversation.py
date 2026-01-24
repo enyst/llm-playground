@@ -53,10 +53,12 @@ def _json_request(
         raise RuntimeError(
             f"HTTP {e.code} for {url} (content-type={ctype!r} body_prefix={raw[:200]!r})"
         ) from e
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Request failed for {url} ({e})") from e
 
     try:
         return json.loads(raw.decode("utf-8"))
-    except Exception as e:  # noqa: BLE001
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
         raise RuntimeError(
             f"Non-JSON response for {url} (content-type={ctype!r} body_prefix={raw[:200]!r})"
         ) from e
@@ -100,7 +102,7 @@ def iter_conversation_events(
         url = _build_url(base_url, f"/api/conversations/{conversation_id}/events", params)
         try:
             payload = _json_request(url, api_key=api_key)
-        except Exception:
+        except RuntimeError:
             if not runtime_url or not session_key:
                 raise
             runtime_events_url = _build_url(

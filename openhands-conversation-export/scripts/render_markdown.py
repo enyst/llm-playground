@@ -15,23 +15,9 @@ import argparse
 import datetime as dt
 import json
 import os
-import re
 from typing import Any, Dict, List, Optional
 
-
-REDACTION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\bghu_[A-Za-z0-9_]{20,}\b"), "<redacted-github-token>"),
-    (re.compile(r"\bghp_[A-Za-z0-9_]{20,}\b"), "<redacted-github-token>"),
-    (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"), "<redacted-github-token>"),
-    (re.compile(r"(https?://)([^/@\s]+)@github\.com"), r"\1<redacted>@github.com"),
-    (re.compile(r"(Authorization:\s*Bearer\s+)([^\s\"]+)", re.IGNORECASE), r"\1<redacted>"),
-]
-
-
-def redact_secrets(s: str) -> str:
-    for pat, repl in REDACTION_PATTERNS:
-        s = pat.sub(repl, s)
-    return s
+from redaction import redact_secrets
 
 
 def _get_text(event: Dict[str, Any]) -> str:
@@ -67,7 +53,7 @@ def _fmt_ts(ts: Optional[str]) -> str:
         t = ts.replace("Z", "+00:00")
         d = dt.datetime.fromisoformat(t)
         return d.astimezone(dt.timezone.utc).isoformat().replace("+00:00", "Z")
-    except Exception:  # noqa: BLE001
+    except ValueError:
         return ts
 
 
@@ -290,8 +276,20 @@ def render_markdown(payload: Dict[str, Any], *, head: int, tail: int) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Render conversation JSON to markdown")
-    parser.add_argument("--in", dest="in_path", required=True)
-    parser.add_argument("--out", dest="out_path", required=True)
+    parser.add_argument(
+        "--in",
+        "--input-path",
+        dest="in_path",
+        required=True,
+        help="Input JSON file path",
+    )
+    parser.add_argument(
+        "--out",
+        "--output-path",
+        dest="out_path",
+        required=True,
+        help="Output markdown file path",
+    )
     parser.add_argument("--head", type=int, default=100)
     parser.add_argument("--tail", type=int, default=100)
     args = parser.parse_args()

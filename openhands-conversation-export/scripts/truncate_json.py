@@ -13,8 +13,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 from typing import Any
+
+from redaction import redact_secrets
 
 
 SENSITIVE_KEYS = {
@@ -22,20 +23,6 @@ SENSITIVE_KEYS = {
     "api_key",
     "llm_api_key",
 }
-
-REDACTION_PATTERNS: list[tuple[re.Pattern[str], str]] = [
-    (re.compile(r"\bghu_[A-Za-z0-9_]{20,}\b"), "<redacted-github-token>"),
-    (re.compile(r"\bghp_[A-Za-z0-9_]{20,}\b"), "<redacted-github-token>"),
-    (re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"), "<redacted-github-token>"),
-    (re.compile(r"(https?://)([^/@\s]+)@github\.com"), r"\1<redacted>@github.com"),
-    (re.compile(r"(Authorization:\s*Bearer\s+)([^\s\"]+)", re.IGNORECASE), r"\1<redacted>"),
-]
-
-
-def redact_secrets(s: str) -> str:
-    for pat, repl in REDACTION_PATTERNS:
-        s = pat.sub(repl, s)
-    return s
 
 
 def truncate_str(s: str, *, max_len: int, head: int, tail: int) -> str:
@@ -67,8 +54,20 @@ def truncate_obj(obj: Any, *, max_len: int, head: int, tail: int) -> Any:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Truncate long strings in JSON")
-    parser.add_argument("--in", dest="in_path", required=True)
-    parser.add_argument("--out", dest="out_path", required=True)
+    parser.add_argument(
+        "--in",
+        "--input-path",
+        dest="in_path",
+        required=True,
+        help="Input JSON file path",
+    )
+    parser.add_argument(
+        "--out",
+        "--output-path",
+        dest="out_path",
+        required=True,
+        help="Output JSON file path",
+    )
     parser.add_argument("--max-len", type=int, default=5000)
     parser.add_argument("--head", type=int, default=100)
     parser.add_argument("--tail", type=int, default=100)
