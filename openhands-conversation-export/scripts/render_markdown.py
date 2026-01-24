@@ -35,13 +35,20 @@ def redact_secrets(s: str) -> str:
 
 
 def _get_text(event: Dict[str, Any]) -> str:
-    # Prefer content for observations; message for chatty events.
-    msg = event.get("message")
+    args = event.get("args")
+    if isinstance(args, dict):
+        c = args.get("content")
+        if isinstance(c, str) and c.strip():
+            return c
+
     content = event.get("content")
     if isinstance(content, str) and content.strip():
         return content
+
+    msg = event.get("message")
     if isinstance(msg, str) and msg.strip():
         return msg
+
     return ""
 
 
@@ -68,93 +75,138 @@ def _safe_json(obj: Any) -> str:
     return redact_secrets(json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True))
 
 
-def render_event(
-    event: Dict[str, Any],
-    *,
-    tool_call_by_id: Dict[int, Dict[str, Any]],
-    head: int,
-    tail: int,
-) -> str:
+def is_chat_message(event: Dict[str, Any]) -> bool:
+    if event.get("source") not in {"user", "agent"}:
+        return False
+    if event.get("action") != "message":
+        return False
+    return bool(_get_text(event).strip())
+
+
+def is_noise_event(event: Dict[str, Any]) -> bool:
+    src = event.get("source")
+    action = event.get("action")
+    obs = event.get("observation")
+
+    # Environment state-change events are usually noisy and add little value.
+    if src == "environment" and obs == "agent_state_changed":
+        return True
+
+    # User recall events are internal plumbing (not user-authored messages).
+    if src == "user" and action == "recall":
+        return True
+
+    # Agent system prompt injection is rarely useful in a transcript.
+    if src == "agent" and action == "system":
+        return True
+
+    # Misc empty environment observations.
+    if src == "environment" and (obs in {None, "null"}) and not _get_text(event).strip():
+        return True
+
+    # Pure agent state toggles.
+    if src == "environment" and action == "change_agent_state":
+        return True
+
+    return False
+
+
+def render_chat_message(event: Dict[str, Any]) -> str:
     eid = event.get("id")
     ts = _fmt_ts(event.get("timestamp"))
     src = event.get("source")
+    role = "User" if src == "user" else "Assistant" if src == "agent" else str(src)
 
-    header = f"**{src}**" if src else "**event**"
+    header_bits = [role]
     if ts:
-        header += f" · {ts}"
+        header_bits.append(ts)
     if isinstance(eid, int):
-        header += f" · id={eid}"
+        header_bits.append(f"id={eid}")
 
-    is_observation = "observation" in event
-    is_tool_call = "action" in event
+    text = _get_text(event).strip()
+    return "\n".join([f"### {' · '.join(header_bits)}", "", text, ""])
 
-    if is_tool_call:
+
+def render_tool_event(event: Dict[str, Any], *, tool_call_by_id: Dict[int, Dict[str, Any]], head: int, tail: int) -> str:
+    eid = event.get("id")
+    ts = _fmt_ts(event.get("timestamp"))
+    src = event.get("source") or "event"
+
+    header_bits: List[str] = [f"{src}"]
+    if ts:
+        header_bits.append(ts)
+    if isinstance(eid, int):
+        header_bits.append(f"id={eid}")
+
+    if "action" in event and event.get("action") is not None:
         action = event.get("action")
-        args = event.get("args")
-        summary_bits: List[str] = []
         if isinstance(action, str):
-            summary_bits.append(action)
-        if isinstance(args, dict):
-            cmd = args.get("command")
-            if isinstance(cmd, str):
-                summary_bits.append(cmd.replace("\n", " ")[:120])
-        summary = " · ".join(summary_bits) if summary_bits else "tool call"
+            header_bits.append(f"action={action}")
 
         body: List[str] = []
-        body.append(header)
+        body.append(f"#### {' · '.join(header_bits)}")
         body.append("")
-        body.append(f"<details>\n<summary>Tool call: {summary}</summary>\n")
-        body.append("\n```json")
+        body.append("```json")
         body.append(
-            _safe_json(
-                {k: event.get(k) for k in ("action", "args", "timeout") if k in event}
-            )
+            _safe_json({k: event.get(k) for k in ("action", "args", "timeout") if k in event})
         )
-        body.append("```\n</details>\n")
+        body.append("```")
+        body.append("")
         return "\n".join(body)
 
-    if is_observation:
+    if "observation" in event and event.get("observation") is not None:
         obs = event.get("observation")
         cause = event.get("cause")
-        cause_txt = ""
-        if isinstance(cause, int) and cause in tool_call_by_id:
-            cause_evt = tool_call_by_id[cause]
-            a = cause_evt.get("action")
-            if isinstance(a, str):
-                cause_txt = a
-        summary = " / ".join(
-            [p for p in [obs if isinstance(obs, str) else None, cause_txt or None] if p]
-        )
-        summary = summary or "tool result"
+        if isinstance(obs, str):
+            header_bits.append(f"observation={obs}")
+        if isinstance(cause, int):
+            header_bits.append(f"cause={cause}")
+            cause_evt = tool_call_by_id.get(cause)
+            cause_action = (cause_evt or {}).get("action")
+            if isinstance(cause_action, str):
+                header_bits.append(f"cause_action={cause_action}")
 
         content = _get_text(event)
         content = _truncate(content, head=head, tail=tail) if content else ""
 
-        body: List[str] = []
-        body.append(header)
-        body.append("")
-        body.append(f"<details>\n<summary>Tool result: {summary}</summary>\n")
-
+        body = []
+        body.append(f"#### {' · '.join(header_bits)}")
         if content:
-            body.append("\n```text")
+            body.append("")
+            body.append("```text")
             body.append(content.rstrip())
             body.append("```")
 
         extras = event.get("extras")
         if extras:
-            body.append("\n```json")
+            body.append("")
+            body.append("```json")
             body.append(_safe_json(extras))
             body.append("```")
 
-        body.append("\n</details>\n")
+        body.append("")
         return "\n".join(body)
 
+    # Fallback: unknown event shape
     text = _get_text(event)
     if not text:
         return ""
+    text = _truncate(text, head=head, tail=tail)
+    return "\n".join([f"#### {' · '.join(header_bits)}", "", "```text", text.rstrip(), "```", ""]) 
 
-    body = [header, "", text.strip(), ""]
-    return "\n".join(body)
+
+def render_tools_block(events: List[Dict[str, Any]], *, tool_call_by_id: Dict[int, Dict[str, Any]], head: int, tail: int) -> str:
+    if not events:
+        return ""
+
+    lines: List[str] = []
+    lines.append(f"<details>\n<summary>Tool calls / results ({len(events)} events)</summary>\n")
+    for e in events:
+        chunk = render_tool_event(e, tool_call_by_id=tool_call_by_id, head=head, tail=tail)
+        if chunk.strip():
+            lines.append(chunk)
+    lines.append("</details>\n")
+    return "\n".join(lines)
 
 
 def render_markdown(payload: Dict[str, Any], *, head: int, tail: int) -> str:
@@ -168,8 +220,12 @@ def render_markdown(payload: Dict[str, Any], *, head: int, tail: int) -> str:
 
     tool_calls: Dict[int, Dict[str, Any]] = {}
     for e in events:
-        if isinstance(e, dict) and isinstance(e.get("id"), int) and "action" in e:
-            tool_calls[int(e["id"])] = e
+        if not isinstance(e, dict) or not isinstance(e.get("id"), int):
+            continue
+        action = e.get("action")
+        if action is None or action == "message":
+            continue
+        tool_calls[int(e["id"])] = e
 
     out: List[str] = []
     out.append(f"# {title}\n")
@@ -188,12 +244,46 @@ def render_markdown(payload: Dict[str, Any], *, head: int, tail: int) -> str:
     out.append("")
 
     out.append("## Transcript\n")
+
+    preamble_tools: List[Dict[str, Any]] = []
+    pending_tools: List[Dict[str, Any]] = []
+    seen_first_message = False
+
     for e in events:
         if not isinstance(e, dict):
             continue
-        chunk = render_event(e, tool_call_by_id=tool_calls, head=head, tail=tail)
-        if chunk.strip():
-            out.append(chunk)
+        if is_noise_event(e):
+            continue
+
+        if is_chat_message(e):
+            if not seen_first_message:
+                tools_block = render_tools_block(
+                    preamble_tools, tool_call_by_id=tool_calls, head=head, tail=tail
+                )
+                if tools_block.strip():
+                    out.append(tools_block)
+                seen_first_message = True
+            else:
+                tools_block = render_tools_block(
+                    pending_tools, tool_call_by_id=tool_calls, head=head, tail=tail
+                )
+                if tools_block.strip():
+                    out.append(tools_block)
+                pending_tools = []
+
+            out.append(render_chat_message(e))
+            continue
+
+        if seen_first_message:
+            pending_tools.append(e)
+        else:
+            preamble_tools.append(e)
+
+    tools_block = render_tools_block(
+        pending_tools, tool_call_by_id=tool_calls, head=head, tail=tail
+    )
+    if tools_block.strip():
+        out.append(tools_block)
 
     return "\n".join(out).rstrip() + "\n"
 
