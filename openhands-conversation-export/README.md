@@ -32,5 +32,5 @@ Notes:
 ## Example output
 
 - Example transcript (rendered markdown):
-  - [`conversations/2c6ec633e00c4c5da99601de500e5752.md`](./conversations/2c6ec633e00c4c5da99601de500e5752.md)
+  - [Roasted PR Review: Build Project & Run Tests](./conversations/2c6ec633e00c4c5da99601de500e5752.md)
 
