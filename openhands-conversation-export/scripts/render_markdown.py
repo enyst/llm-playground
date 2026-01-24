@@ -40,10 +40,16 @@ def _get_text(event: Dict[str, Any]) -> str:
 
 def _truncate(s: str, head: int, tail: int) -> str:
     s = redact_secrets(s)
+    head = max(0, head)
+    tail = max(0, tail)
+
     if len(s) <= head + tail + 20:
         return s
+
     removed = len(s) - (head + tail)
-    return f"{s[:head]}...<truncated {removed} chars>...{s[-tail:]}"
+    prefix = s[:head]
+    suffix = "" if tail == 0 else s[-tail:]
+    return f"{prefix}...<truncated {removed} chars>...{suffix}"
 
 
 def _fmt_ts(ts: Optional[str]) -> str:

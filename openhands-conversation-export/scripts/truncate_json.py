@@ -27,13 +27,20 @@ SENSITIVE_KEYS = {
 
 def truncate_str(s: str, *, max_len: int, head: int, tail: int) -> str:
     s = redact_secrets(s)
+    head = max(0, head)
+    tail = max(0, tail)
+
     if len(s) <= max_len:
         return s
+
     if head + tail >= max_len:
         head = max(0, max_len // 2)
         tail = max(0, max_len - head)
+
     removed = len(s) - (head + tail)
-    return f"{s[:head]}...<truncated {removed} chars>...{s[-tail:]}"
+    prefix = s[:head]
+    suffix = "" if tail == 0 else s[-tail:]
+    return f"{prefix}...<truncated {removed} chars>...{suffix}"
 
 
 def truncate_obj(obj: Any, *, max_len: int, head: int, tail: int) -> Any:
