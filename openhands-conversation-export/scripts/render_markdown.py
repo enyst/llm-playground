@@ -277,14 +277,12 @@ def render_markdown(payload: Dict[str, Any], *, head: int, tail: int) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Render conversation JSON to markdown")
     parser.add_argument(
-        "--in",
         "--input-path",
         dest="in_path",
         required=True,
         help="Input JSON file path",
     )
     parser.add_argument(
-        "--out",
         "--output-path",
         dest="out_path",
         required=True,

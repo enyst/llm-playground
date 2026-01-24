@@ -16,13 +16,13 @@ python openhands-conversation-export/scripts/export_conversation.py \
 
 # 2) Create a truncated JSON (recommended for committing)
 python openhands-conversation-export/scripts/truncate_json.py \
-  --in openhands-conversation-export/conversations/2c6ec633e00c4c5da99601de500e5752.raw.json \
-  --out openhands-conversation-export/conversations/2c6ec633e00c4c5da99601de500e5752.truncated.json
+  --input-path openhands-conversation-export/conversations/2c6ec633e00c4c5da99601de500e5752.raw.json \
+  --output-path openhands-conversation-export/conversations/2c6ec633e00c4c5da99601de500e5752.truncated.json
 
 # 3) Render markdown transcript
 python openhands-conversation-export/scripts/render_markdown.py \
-  --in openhands-conversation-export/conversations/2c6ec633e00c4c5da99601de500e5752.truncated.json \
-  --out openhands-conversation-export/conversations/2c6ec633e00c4c5da99601de500e5752.md
+  --input-path openhands-conversation-export/conversations/2c6ec633e00c4c5da99601de500e5752.truncated.json \
+  --output-path openhands-conversation-export/conversations/2c6ec633e00c4c5da99601de500e5752.md
 ```
 
 Notes:

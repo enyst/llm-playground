@@ -55,14 +55,12 @@ def truncate_obj(obj: Any, *, max_len: int, head: int, tail: int) -> Any:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Truncate long strings in JSON")
     parser.add_argument(
-        "--in",
         "--input-path",
         dest="in_path",
         required=True,
         help="Input JSON file path",
     )
     parser.add_argument(
-        "--out",
         "--output-path",
         dest="out_path",
         required=True,
