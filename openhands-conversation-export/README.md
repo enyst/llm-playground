@@ -32,5 +32,5 @@ Notes:
 ## Example output
 
 - Example transcript (rendered markdown):
-  - [Roasted PR Review: Build Project & Run Tests](./conversations/2c6ec633e00c4c5da99601de500e5752.md)
+  - [Discussion on WS reliability and /events source of truth](./conversations/2c6ec633e00c4c5da99601de500e5752.md)
 
