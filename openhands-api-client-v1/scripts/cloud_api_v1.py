@@ -255,10 +255,11 @@ def agent_execute_bash(agent_server_url: str, session_api_key: str, command: str
     response.raise_for_status()
     return response.json()
 
-def agent_download_file(agent_server_url: str, session_api_key: str, path: str):
+def agent_download_file(agent_server_url: str, session_api_key: str, path: str) -> bytes:
     """Download a file from the sandbox workspace. ONE API call.
     
     Path must be absolute (e.g., /workspace/project/file.txt).
+    Returns raw bytes to support both text and binary files.
     """
     # Path must be absolute, keep the leading /
     if not path.startswith("/"):
@@ -269,7 +270,7 @@ def agent_download_file(agent_server_url: str, session_api_key: str, path: str):
     print(f"[API CALL] GET {url}")
     response = httpx.get(url, headers=headers, timeout=30)
     response.raise_for_status()
-    return response.text
+    return response.content
 
 def agent_upload_file(agent_server_url: str, session_api_key: str, path: str, content: str):
     """Upload a file to the sandbox workspace. ONE API call.
@@ -282,8 +283,9 @@ def agent_upload_file(agent_server_url: str, session_api_key: str, path: str, co
     url = f"{agent_server_url}/api/file/upload{path}"
     headers = {"X-Session-API-Key": session_api_key}  # No Content-Type for multipart
     
-    # Create multipart form data
-    files = {"file": ("file", content.encode(), "text/plain")}
+    # Create multipart form data with actual filename
+    filename = os.path.basename(path)
+    files = {"file": (filename, content.encode(), "text/plain")}
     
     print(f"[API CALL] POST {url}")
     print(f"[CONTENT LENGTH] {len(content)} chars")
@@ -428,8 +430,13 @@ if __name__ == "__main__":
         path = sys.argv[4]
         result = run_test(f"Download File: {path}", agent_download_file, agent_url, session_key, path)
         if result:
-            print(f"\n--- File Content ({len(result)} chars) ---")
-            print(result[:2000] if len(result) > 2000 else result)
+            print(f"\n--- File Content ({len(result)} bytes) ---")
+            # Try to decode as UTF-8, show hex preview for binary
+            try:
+                text = result.decode("utf-8")
+                print(text[:2000] if len(text) > 2000 else text)
+            except UnicodeDecodeError:
+                print(f"[Binary file, first 100 bytes hex]: {result[:100].hex()}")
     
     elif test_name == "agent_upload":
         # Usage: agent_upload <agent_server_url> <session_api_key> <path> <content>
