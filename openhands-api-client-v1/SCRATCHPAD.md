@@ -125,38 +125,70 @@ These run at the `AGENT_SERVER` URL from sandbox's `exposed_urls`:
 
 ## Implementation Plan
 
-### Phase 1: Basic Read Operations
-- [ ] Initialize client with API key
-- [ ] Search app conversations
-- [ ] Get app conversation by ID
-- [ ] Search sandboxes
-- [ ] Get sandbox by ID
-- [ ] Search events
+### Phase 1: Basic Read Operations ✅ COMPLETE
+- [x] Initialize client with API key
+- [x] Search app conversations (`GET /api/v1/app-conversations/search`)
+- [x] Count app conversations (`GET /api/v1/app-conversations/count`) → Returns: 604
+- [x] Get app conversation by ID (endpoint exists, needs running sandbox to test fully)
+- [x] Search sandboxes (`GET /api/v1/sandboxes/search`)
+- [x] Search events (`GET /api/v1/conversation/{id}/events/search`)
+- [x] Count events (`GET /api/v1/conversation/{id}/events/count`)
+- [x] Get current user (`GET /api/v1/users/me`)
 
 ### Phase 2: Write Operations
-- [ ] Start app conversation
-- [ ] Update app conversation
-- [ ] Delete app conversation
-- [ ] Pause/resume sandbox
-- [ ] Delete sandbox
+- [ ] Start app conversation (`POST /api/v1/app-conversations`)
+- [ ] Update app conversation (`PATCH /api/v1/app-conversations/{id}`)
+- [ ] Delete app conversation (`DELETE /api/v1/app-conversations/{id}`)
+- [ ] Pause sandbox (`POST /api/v1/sandboxes/{id}/pause`)
+- [ ] Resume sandbox (`POST /api/v1/sandboxes/{id}/resume`)
+- [ ] Delete sandbox (`DELETE /api/v1/sandboxes/{id}`)
 
 ### Phase 3: Agent Server Integration
-- [ ] Get agent server URL from sandbox
-- [ ] Download trajectory
-- [ ] Download/upload files
-- [ ] Bash command execution
+- [ ] Get agent server URL from sandbox's `exposed_urls`
+- [ ] Download trajectory (`GET /api/v1/app-conversations/{id}/download`)
+- [ ] Download/upload files via Agent Server
+- [ ] Bash command execution via Agent Server
 
 ### Phase 4: Utilities
 - [ ] Conversation summary
 - [ ] Polling for status changes
 - [ ] Event streaming (if WebSocket supported)
 
-## Questions to Verify
+## Verified Answers
 
-1. Is the `/api/v1/` prefix used on app.all-hands.dev?
-2. How does authentication work for V1 vs V0? Same API key?
-3. Can we use the same OPENHANDS_API_KEY for both?
-4. How do we get the agent_server URL from a conversation?
+1. **Is the `/api/v1/` prefix used on app.all-hands.dev?** ✅ YES
+2. **How does authentication work for V1 vs V0?** Same `Authorization: Bearer {API_KEY}` header
+3. **Can we use the same OPENHANDS_API_KEY for both?** ✅ YES - same key works
+4. **How do we get the agent_server URL from a conversation?**
+   - Get conversation → `sandbox_id`
+   - Get sandbox → `exposed_urls` array
+   - Find entry where `name == "AGENT_SERVER"` → `url`
+   - Note: `exposed_urls` is `null` when sandbox is PAUSED
+
+## Observations from Testing
+
+### Conversation Structure
+- IDs are 32-char hex UUIDs (no dashes in API, but stored as UUID internally)
+- `sandbox_status`: RUNNING, STARTING, PAUSED, ERROR, MISSING
+- `execution_status`: Only populated when sandbox is RUNNING
+- `conversation_url` and `session_api_key`: Only available when sandbox is RUNNING
+
+### Sandbox Structure
+- `session_api_key`: Available even when PAUSED (for authentication)
+- `exposed_urls`: Only available when RUNNING
+- `sandbox_spec_id`: Docker image reference (e.g., `ghcr.io/openhands/agent-server:7c91cbe-python`)
+
+### Events
+- Events contain full conversation configuration including:
+  - LLM config (model, base_url, API keys - redacted)
+  - Agent config (system prompt, condenser settings)
+  - Workspace config
+  - Secret registry (all secrets redacted with `**********`)
+- First event is typically `ConversationStateUpdateEvent` with full state
+
+### Web Client Config
+- Requires authentication (contrary to router code - must be enforced by middleware)
+- Returns 401 without auth
 
 ## Testing Notes
 
