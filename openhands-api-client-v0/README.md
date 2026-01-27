@@ -1,9 +1,10 @@
-# OpenHands Cloud API Client
+# OpenHands Cloud API Client (V0)
 
-A Python client for automating tasks with the OpenHands Cloud API (V0).
+A Python client for automating tasks with the OpenHands Cloud API V0 (legacy).
 
-> **Note**: This client targets the V0 (legacy) API. V0 is deprecated but widely used.
-> See [SCRATCHPAD.md](SCRATCHPAD.md) for notes on V1 migration.
+> **Note**: This client targets the V0 (legacy) API. V0 is deprecated (scheduled for
+> removal April 1, 2026) but still widely used. For the V1 client, see
+> [`../openhands-api-client-v1/`](../openhands-api-client-v1/).
 
 ## Quick Start
 
@@ -87,7 +88,7 @@ print(f"Events: {summary['event_count']}, Model: {summary['model']}")
 ## CLI Usage
 
 ```bash
-cd openhands-api-client
+cd openhands-api-client-v0
 
 # Configure LLM
 python scripts/llm_conversation.py configure-llm
