@@ -129,18 +129,19 @@ These run at the `AGENT_SERVER` URL from sandbox's `exposed_urls`:
 - [x] Initialize client with API key
 - [x] Search app conversations (`GET /api/v1/app-conversations/search`)
 - [x] Count app conversations (`GET /api/v1/app-conversations/count`) → Returns: 604
-- [x] Get app conversation by ID (endpoint exists, needs running sandbox to test fully)
+- [x] Get app conversation by ID (uses batch endpoint `?ids=`)
 - [x] Search sandboxes (`GET /api/v1/sandboxes/search`)
 - [x] Search events (`GET /api/v1/conversation/{id}/events/search`)
 - [x] Count events (`GET /api/v1/conversation/{id}/events/count`)
 - [x] Get current user (`GET /api/v1/users/me`)
 
-### Phase 2: Write Operations
-- [ ] Start app conversation (`POST /api/v1/app-conversations`)
+### Phase 2: Write Operations ✅ COMPLETE
+- [x] Start app conversation (`POST /api/v1/app-conversations`) → Returns start task
+- [x] Get start task status (`GET /api/v1/app-conversations/start-tasks?ids=`)
+- [x] Pause sandbox (`POST /api/v1/sandboxes/{id}/pause`)
+- [x] Resume sandbox (`POST /api/v1/sandboxes/{id}/resume`)
 - [ ] Update app conversation (`PATCH /api/v1/app-conversations/{id}`)
 - [ ] Delete app conversation (`DELETE /api/v1/app-conversations/{id}`)
-- [ ] Pause sandbox (`POST /api/v1/sandboxes/{id}/pause`)
-- [ ] Resume sandbox (`POST /api/v1/sandboxes/{id}/resume`)
 - [ ] Delete sandbox (`DELETE /api/v1/sandboxes/{id}`)
 
 ### Phase 3: Agent Server Integration
@@ -189,6 +190,25 @@ These run at the `AGENT_SERVER` URL from sandbox's `exposed_urls`:
 ### Web Client Config
 - Requires authentication (contrary to router code - must be enforced by middleware)
 - Returns 401 without auth
+
+### Start Conversation Flow
+1. `POST /api/v1/app-conversations` with `initial_message` → Returns `AppConversationStartTask` with `status: WORKING`
+2. Poll `GET /api/v1/app-conversations/start-tasks?ids={task_id}` until `status: READY`
+3. When ready, extract `app_conversation_id`, `sandbox_id`, `agent_server_url`
+4. Agent automatically processes the initial message when `run: true`
+
+### Endpoint Quirks
+- Single-ID GET endpoints (e.g., `/app-conversations/{id}`) may return empty body
+- Use batch endpoints instead (e.g., `/app-conversations?ids={id}`)
+- Download trajectory may return 500 during service issues
+
+### Test Conversation (2026-01-27)
+- **Conversation ID**: `bb6a1b39c0d44d4db931e53d59897c77`
+- **Sandbox ID**: `22Cnn1FqUu17shZhJ7b5Ka`
+- **Message**: "Hello! This is a V1 API test..."
+- **Response**: "Hello! I can see your message loud and clear, and I'm ready to help."
+- **Title** (set by agent): "✅ V1 API Greeting Confirmation Test"
+- **Cost**: ~$0.024
 
 ## Testing Notes
 
