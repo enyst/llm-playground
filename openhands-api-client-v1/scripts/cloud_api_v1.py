@@ -20,6 +20,8 @@ API_V1_URL = f"{BASE_URL}/api/v1"
 
 def get_headers():
     """Get headers for API requests."""
+    if not API_KEY:
+        raise ValueError("OPENHANDS_API_KEY environment variable is not set")
     return {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json",
@@ -145,7 +147,7 @@ def run_test(name: str, func, *args, **kwargs):
         return result
     except httpx.HTTPStatusError as e:
         print(f"HTTP Error: {e.response.status_code}")
-        print(f"Response: {e.response.text[:500]}")
+        print(f"Response: {e.response.text}")
         return None
     except Exception as e:
         print(f"Error: {e}")
