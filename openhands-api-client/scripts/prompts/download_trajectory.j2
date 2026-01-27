@@ -1,0 +1,204 @@
+# Download and Summarize OpenHands Conversation Trajectory
+
+You need to download and optionally summarize a trajectory from an OpenHands conversation.
+
+## Prerequisites
+
+- `OPENHANDS_API_KEY` environment variable set (or pass via --api-key)
+- The `openhands-api-client` scripts are available
+- For summarization: `openhands` CLI installed (via uv tool: `uvx openhands`)
+
+## Step 1: Get Conversation Details
+
+First, get the conversation info to check its status and size:
+
+```bash
+# Using the API client
+cd openhands-api-client
+python -c "
+from scripts.cloud_api import OpenHandsCloudAPI
+import json
+
+api = OpenHandsCloudAPI()
+conv_id = '{{ conversation_id }}'
+
+# Get basic info
+details = api.get_conversation(conv_id)
+print('Conversation:', json.dumps(details, indent=2, default=str))
+
+# Check event count (without downloading all events)
+last_id = api.get_last_event_id(conv_id)
+print(f'\\nApproximate event count: {last_id + 1 if last_id is not None else 0}')
+"
+```
+
+## Step 2: Download Trajectory
+
+For small trajectories (< 500 events), download directly:
+
+```bash
+python -c "
+from scripts.cloud_api import OpenHandsCloudAPI
+import json
+
+api = OpenHandsCloudAPI()
+conv_id = '{{ conversation_id }}'
+trajectory = api.get_trajectory(conv_id)
+
+# Save to file
+with open(f'trajectory_{conv_id}.json', 'w') as f:
+    json.dump(trajectory, f, indent=2, default=str)
+
+print(f'Saved trajectory to trajectory_{conv_id}.json')
+print(f'Events: {len(trajectory.get(\"trajectory\", []))}')
+"
+```
+
+## Step 3: Handle Large Trajectories
+
+**IMPORTANT**: Large trajectories (1000+ events, 10MB+ JSON) may:
+1. Exceed your context window if you try to read them directly
+2. Take a long time to download
+3. Fail due to timeouts
+
+### Check Size First
+
+```bash
+# Get file size after download
+ls -lh trajectory_*.json
+```
+
+### Option A: Paginated Download
+
+Download events in chunks if trajectory endpoint fails:
+
+```bash
+python -c "
+from scripts.cloud_api import OpenHandsCloudAPI
+import json
+
+api = OpenHandsCloudAPI()
+conv_id = '{{ conversation_id }}'
+
+# Download in pages of 100
+all_events = []
+start_id = 0
+while True:
+    result = api.get_events(conv_id, start_id=start_id, limit=100)
+    events = result.get('events', [])
+    if not events:
+        break
+    all_events.extend(events)
+    start_id = events[-1]['id'] + 1
+    print(f'Downloaded {len(all_events)} events...')
+    if not result.get('has_more', False):
+        break
+
+with open(f'events_{conv_id}.json', 'w') as f:
+    json.dump({'events': all_events}, f, indent=2, default=str)
+print(f'Saved {len(all_events)} events')
+"
+```
+
+### Option B: Use Runtime Fallback
+
+If the main API returns errors (maintenance page), use the runtime URL:
+
+```bash
+python -c "
+from scripts.cloud_api import OpenHandsCloudAPI
+import requests
+import json
+
+api = OpenHandsCloudAPI()
+conv_id = '{{ conversation_id }}'
+
+# Get runtime URL and session key
+details = api.get_conversation(conv_id)
+runtime_url = details.get('url')
+session_key = details.get('session_api_key')
+
+if not runtime_url or not session_key:
+    print('Error: Conversation may be stopped or archived')
+    exit(1)
+
+# Call runtime directly
+headers = {
+    'Authorization': f'Bearer {api.api_key}',
+    'X-Session-API-Key': session_key
+}
+response = requests.get(f'{runtime_url}/trajectory', headers=headers, timeout=300)
+response.raise_for_status()
+
+with open(f'trajectory_{conv_id}.json', 'w') as f:
+    json.dump(response.json(), f, indent=2)
+print('Downloaded via runtime fallback')
+"
+```
+
+## Step 4: Summarize Large Trajectories
+
+If the trajectory is too large to read directly (> 100KB), use the OpenHands CLI to summarize.
+
+**Run in tmux for long operations:**
+
+```bash
+# Start tmux session
+tmux new-session -d -s trajectory_summary
+
+# Run summarization
+tmux send-keys -t trajectory_summary "openhands --prompt 'Summarize the key actions and outcomes from this trajectory JSON file. Focus on: 1) What task was attempted, 2) Key steps taken, 3) Final outcome, 4) Any errors or issues. Be concise.' trajectory_{{ conversation_id }}.json" Enter
+
+# Check progress
+tmux attach -t trajectory_summary
+# Detach with Ctrl+B then D
+
+# Check if done
+tmux capture-pane -t trajectory_summary -p | tail -50
+```
+
+### Alternative: Use jq to Extract Key Info
+
+```bash
+# Extract just actions and results
+cat trajectory_{{ conversation_id }}.json | jq '
+  .trajectory | map(select(.action != null)) | 
+  map({id, action, source, message: (.message // .content)[:200]})
+' > trajectory_summary.json
+
+# Count by action type
+cat trajectory_{{ conversation_id }}.json | jq '
+  .trajectory | group_by(.action) | 
+  map({action: .[0].action, count: length}) | 
+  sort_by(-.count)
+'
+```
+
+## Tips
+
+1. **Always check event count first** before downloading full trajectory
+2. **Large trajectories may timeout** - use paginated download or increase timeout
+3. **Runtime URLs are temporary** - they only work while conversation is running
+4. **Save trajectories to files** - don't try to hold large ones in memory
+5. **Use jq for quick analysis** - faster than loading into Python for simple queries
+6. **tmux is your friend** - use it for any long-running summarization tasks
+
+## Common Issues
+
+### "Conversation not found"
+- Check if the conversation ID is correct
+- V1 conversations use UUID format (32 hex chars)
+- V0 conversations use shorter alphanumeric IDs
+
+### "Runtime URL not available"
+- Conversation is stopped or archived
+- Try using main API endpoints instead of runtime fallback
+
+### "Context too long" when reading trajectory
+- Don't cat large JSON files directly
+- Use jq to extract specific fields
+- Summarize using OpenHands CLI in tmux
+
+### Timeouts
+- Increase timeout in requests: `timeout=300`
+- Use paginated event download instead of single trajectory call

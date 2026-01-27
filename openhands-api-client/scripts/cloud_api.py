@@ -1,4 +1,15 @@
-"""OpenHands Cloud API client for automation tasks."""
+"""OpenHands Cloud API client for automation tasks.
+
+This client targets the V0 (legacy) OpenHands API. V0 is deprecated but still
+widely used. For V1 API, see the app_server routes in the main OpenHands repo.
+
+Key V0 endpoints:
+- /api/conversations - Create, list, get, delete conversations
+- /api/conversations/{id}/events - Get events with pagination
+- /api/conversations/{id}/trajectory - Get full trajectory
+- /api/settings - Store/load LLM settings
+- /api/user/info - Get user information
+"""
 
 import os
 import time
@@ -9,7 +20,16 @@ import requests
 
 
 class OpenHandsCloudAPI:
-    """Client for interacting with OpenHands Cloud API."""
+    """Client for interacting with OpenHands Cloud API (V0).
+
+    The client supports both the main app host and direct runtime access
+    for fallback scenarios (e.g., maintenance windows).
+
+    Attributes:
+        api_key: The OpenHands API key
+        base_url: Base URL for the OpenHands Cloud API
+        session: Requests session with auth headers configured
+    """
 
     def __init__(
         self, api_key: Optional[str] = None, base_url: str = 'https://app.all-hands.dev'
@@ -18,7 +38,7 @@ class OpenHandsCloudAPI:
 
         Args:
             api_key: OpenHands API key. If not provided, will use OPENHANDS_API_KEY env var.
-            base_url: Base URL for the OpenHands Cloud API.
+            base_url: Base URL for the OpenHands Cloud API. Can also be set via OPENHANDS_APP_BASE.
         """
         self.api_key = api_key or os.getenv('OPENHANDS_API_KEY')
         if not self.api_key:
@@ -26,7 +46,7 @@ class OpenHandsCloudAPI:
                 'API key is required. Set OPENHANDS_API_KEY environment variable or pass api_key parameter.'
             )
 
-        self.base_url = base_url.rstrip('/')
+        self.base_url = os.getenv('OPENHANDS_APP_BASE', base_url).rstrip('/')
         self.session = requests.Session()
         self.session.headers.update(
             {
@@ -336,3 +356,386 @@ class OpenHandsCloudAPI:
         response = requests.post(url, headers=headers, json=data, timeout=30)
         response.raise_for_status()
         print(f'✅ Posted comment to GitHub issue #{issue_number}')
+
+    # =========================================================================
+    # Additional V0 API Methods
+    # =========================================================================
+
+    def get_settings(self) -> dict[str, Any]:
+        """Load current user settings.
+
+        Returns:
+            Settings object with LLM configuration and preferences.
+            Note: API keys are masked (only shows if they're set, not values)
+        """
+        response = self.session.get(f'{self.base_url}/api/settings')
+        response.raise_for_status()
+        return response.json()
+
+    def get_user_info(self) -> dict[str, Any]:
+        """Get information about the authenticated user.
+
+        Returns:
+            User info including name, email, and linked git providers
+        """
+        response = self.session.get(f'{self.base_url}/api/user/info')
+        response.raise_for_status()
+        return response.json()
+
+    def delete_conversation(self, conversation_id: str) -> dict[str, Any]:
+        """Delete a conversation.
+
+        Args:
+            conversation_id: The conversation ID to delete
+
+        Returns:
+            Confirmation response
+        """
+        response = self.session.delete(
+            f'{self.base_url}/api/conversations/{conversation_id}'
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def start_conversation(
+        self,
+        conversation_id: str,
+        git_provider: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Start the agent loop for a conversation.
+
+        Args:
+            conversation_id: The conversation ID
+            git_provider: Git provider type (e.g., 'github', 'gitlab')
+
+        Returns:
+            Conversation response with status
+        """
+        payload = {}
+        if git_provider:
+            payload['providers_set'] = {git_provider: True}
+        else:
+            payload['providers_set'] = {}
+
+        response = self.session.post(
+            f'{self.base_url}/api/conversations/{conversation_id}/start',
+            json=payload,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def stop_conversation(self, conversation_id: str) -> dict[str, Any]:
+        """Stop a running conversation.
+
+        Args:
+            conversation_id: The conversation ID
+
+        Returns:
+            Confirmation response
+        """
+        response = self.session.post(
+            f'{self.base_url}/api/conversations/{conversation_id}/stop'
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def send_message(self, conversation_id: str, message: str) -> dict[str, Any]:
+        """Send a message to an existing conversation.
+
+        Args:
+            conversation_id: The conversation ID
+            message: The message text to send
+
+        Returns:
+            Confirmation response
+        """
+        response = self.session.post(
+            f'{self.base_url}/api/conversations/{conversation_id}/message',
+            json={'message': message},
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def list_files(
+        self, conversation_id: str, path: Optional[str] = None
+    ) -> list[str]:
+        """List files in the conversation workspace.
+
+        Args:
+            conversation_id: The conversation ID
+            path: Optional subdirectory path
+
+        Returns:
+            List of file paths
+        """
+        params = {}
+        if path:
+            params['path'] = path
+
+        response = self.session.get(
+            f'{self.base_url}/api/conversations/{conversation_id}/list-files',
+            params=params,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def get_runtime_config(self, conversation_id: str) -> dict[str, Any]:
+        """Get runtime configuration for a conversation.
+
+        Returns runtime_id and session_id which can be used for direct
+        runtime access when the main API is unavailable.
+
+        Args:
+            conversation_id: The conversation ID
+
+        Returns:
+            Dict with 'runtime_id' and 'session_id' keys
+        """
+        response = self.session.get(
+            f'{self.base_url}/api/conversations/{conversation_id}/config'
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def get_vscode_url(self, conversation_id: str) -> Optional[str]:
+        """Get VS Code URL for a conversation (deprecated in V1).
+
+        Args:
+            conversation_id: The conversation ID
+
+        Returns:
+            VS Code URL or None if not available
+        """
+        response = self.session.get(
+            f'{self.base_url}/api/conversations/{conversation_id}/vscode-url'
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data.get('vscode_url')
+
+    def get_web_hosts(self, conversation_id: str) -> Optional[list[str]]:
+        """Get web hosts used by the runtime (deprecated in V1).
+
+        Args:
+            conversation_id: The conversation ID
+
+        Returns:
+            List of host URLs or None if not available
+        """
+        response = self.session.get(
+            f'{self.base_url}/api/conversations/{conversation_id}/web-hosts'
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data.get('hosts')
+
+    def get_microagents(self, conversation_id: str) -> list[dict[str, Any]]:
+        """Get microagents loaded for a conversation.
+
+        Args:
+            conversation_id: The conversation ID
+
+        Returns:
+            List of microagent objects with name, type, content, triggers
+        """
+        response = self.session.get(
+            f'{self.base_url}/api/conversations/{conversation_id}/microagents'
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data.get('microagents', [])
+
+    def submit_feedback(
+        self,
+        conversation_id: str,
+        feedback_type: str,
+        feedback_text: str,
+        event_id: Optional[int] = None,
+    ) -> dict[str, Any]:
+        """Submit feedback for a conversation.
+
+        Args:
+            conversation_id: The conversation ID
+            feedback_type: Type of feedback (e.g., 'positive', 'negative')
+            feedback_text: Feedback description
+            event_id: Optional event ID the feedback relates to
+
+        Returns:
+            Confirmation response
+        """
+        payload = {
+            'feedback_type': feedback_type,
+            'feedback_text': feedback_text,
+        }
+        if event_id is not None:
+            payload['event_id'] = event_id
+
+        response = self.session.post(
+            f'{self.base_url}/api/conversations/{conversation_id}/submit-feedback',
+            json=payload,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    # =========================================================================
+    # Runtime Fallback Support
+    # =========================================================================
+
+    def get_trajectory_via_runtime(
+        self,
+        conversation_id: str,
+        timeout: int = 300,
+    ) -> dict[str, Any]:
+        """Get trajectory using direct runtime access (fallback).
+
+        Use this when the main API returns errors or maintenance pages.
+        Requires an active (running) conversation.
+
+        Args:
+            conversation_id: The conversation ID
+            timeout: Request timeout in seconds (default: 5 minutes)
+
+        Returns:
+            Trajectory data with events
+
+        Raises:
+            ValueError: If runtime URL or session key not available
+        """
+        details = self.get_conversation(conversation_id)
+        runtime_url = details.get('url')
+        session_key = details.get('session_api_key')
+
+        if not runtime_url or not session_key:
+            raise ValueError(
+                'Runtime URL or session key not available. '
+                'Conversation may be stopped or archived.'
+            )
+
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'X-Session-API-Key': session_key,
+        }
+        response = requests.get(
+            f'{runtime_url}/trajectory',
+            headers=headers,
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def get_events_via_runtime(
+        self,
+        conversation_id: str,
+        start_id: int = 0,
+        limit: int = 100,
+        reverse: bool = False,
+        timeout: int = 60,
+    ) -> dict[str, Any]:
+        """Get events using direct runtime access (fallback).
+
+        Args:
+            conversation_id: The conversation ID
+            start_id: Starting event ID
+            limit: Maximum events to return (1-100)
+            reverse: Whether to return in reverse order
+            timeout: Request timeout in seconds
+
+        Returns:
+            Events data with pagination info
+
+        Raises:
+            ValueError: If runtime URL or session key not available
+        """
+        details = self.get_conversation(conversation_id)
+        runtime_url = details.get('url')
+        session_key = details.get('session_api_key')
+
+        if not runtime_url or not session_key:
+            raise ValueError(
+                'Runtime URL or session key not available. '
+                'Conversation may be stopped or archived.'
+            )
+
+        limit = max(1, min(100, int(limit)))
+        headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'X-Session-API-Key': session_key,
+        }
+        params = {
+            'start_id': start_id,
+            'limit': limit,
+            'reverse': str(reverse).lower(),
+        }
+        response = requests.get(
+            f'{runtime_url}/events',
+            headers=headers,
+            params=params,
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    # =========================================================================
+    # Utility Methods
+    # =========================================================================
+
+    def download_trajectory_to_file(
+        self,
+        conversation_id: str,
+        output_path: Optional[str] = None,
+        use_runtime_fallback: bool = False,
+    ) -> str:
+        """Download trajectory and save to a JSON file.
+
+        Args:
+            conversation_id: The conversation ID
+            output_path: Output file path (default: trajectory_{id}.json)
+            use_runtime_fallback: If True, use runtime URL instead of main API
+
+        Returns:
+            Path to the saved file
+        """
+        import json
+
+        if output_path is None:
+            output_path = f'trajectory_{conversation_id}.json'
+
+        if use_runtime_fallback:
+            trajectory = self.get_trajectory_via_runtime(conversation_id)
+        else:
+            trajectory = self.get_trajectory(conversation_id)
+
+        with open(output_path, 'w') as f:
+            json.dump(trajectory, f, indent=2, default=str)
+
+        return output_path
+
+    def get_conversation_summary(self, conversation_id: str) -> dict[str, Any]:
+        """Get a summary of conversation state and statistics.
+
+        Args:
+            conversation_id: The conversation ID
+
+        Returns:
+            Dict with title, status, event count, model used, etc.
+        """
+        details = self.get_conversation(conversation_id)
+        last_event_id = self.get_last_event_id(conversation_id)
+        model = self.get_recent_model(conversation_id)
+        first_msg = self.get_first_user_message(conversation_id)
+
+        return {
+            'conversation_id': conversation_id,
+            'title': details.get('title'),
+            'status': details.get('status'),
+            'runtime_status': details.get('runtime_status'),
+            'created_at': details.get('created_at'),
+            'last_updated_at': details.get('last_updated_at'),
+            'repository': details.get('selected_repository'),
+            'branch': details.get('selected_branch'),
+            'event_count': (last_event_id + 1) if last_event_id is not None else 0,
+            'model': model,
+            'first_message': first_msg[:200] if first_msg else None,
+            'url': details.get('url'),
+            'has_runtime': bool(details.get('url') and details.get('session_api_key')),
+        }
