@@ -1,110 +1,116 @@
-# OpenHands Cloud Automation Scripts
+# OpenHands Cloud API Client
 
-This directory contains Python scripts for automating tasks with OpenHands Cloud API.
+A Python client for automating tasks with the OpenHands Cloud API (V0).
+
+> **Note**: This client targets the V0 (legacy) API. V0 is deprecated but widely used.
+> See [SCRATCHPAD.md](SCRATCHPAD.md) for notes on V1 migration.
+
+## Quick Start
+
+```python
+from scripts.cloud_api import OpenHandsCloudAPI
+
+api = OpenHandsCloudAPI()  # Uses OPENHANDS_API_KEY env var
+
+# Create a conversation
+result = api.create_conversation(
+    initial_user_msg="Fix the bug in app.py",
+    repository="owner/repo",
+)
+conv_id = result['conversation_id']
+
+# Get summary
+summary = api.get_conversation_summary(conv_id)
+print(f"Events: {summary['event_count']}, Model: {summary['model']}")
+```
 
 ## Files
 
-- `cloud_api.py` - OpenHands Cloud API client library
-- `llm_conversation.py` - Main CLI script for LLM configuration and conversation management
-- `prompts/new_conversation.j2` - Jinja2 template for new conversation prompts
-
-## Usage
-
-### Configure LLM Settings
-
-Configure LLM settings from repository secrets:
-
-```bash
-python llm_conversation.py configure-llm
-```
-
-This reads the following environment variables (typically set as repository secrets):
-- `LLM_MODEL` - The LLM model to use (e.g., "gpt-4", "claude-3-sonnet")
-- `LLM_BASE_URL` - Base URL for the LLM API (optional)
-- `LLM_API_KEY` - API key for the LLM provider (optional)
-- `OPENHANDS_API_KEY` - OpenHands Cloud API key (required)
-
-### Start New Conversation
-
-Start a new conversation using the `new_conversation.j2` template:
-
-```bash
-python llm_conversation.py new-conversation
-```
-
-Optional parameters:
-- `--repository owner/repo` - Git repository to work with
-- `--branch branch-name` - Git branch to use
-- `--prompt-file filename` - Choose a prompt template (e.g., `arch_conversation.j2`, `new_conversation.j2`)
-- `--custom-prompt "..."` - Provide a custom prompt (overrides `--prompt-file`)
-- `--poll` - Poll until conversation completes
-- `--api-key KEY` - Override OPENHANDS_API_KEY environment variable
-
-### Combined Operation
-
-Configure LLM settings and start a new conversation in one command:
-
-```bash
-python llm_conversation.py configure-and-start --repository owner/repo --poll
-```
-
-### Architect conversation (prompt file)
-
-To start a conversation with an architecture-focused prompt:
-
-```bash
-python llm_conversation.py new-conversation --prompt-file arch_conversation.j2 \
-  --repository owner/repo --branch main --poll
-```
-
-From Python code:
-
-```python
-# Run this from the 'openhands-api-client' directory (or add it to sys.path)
-from scripts.cloud_api import OpenHandsCloudAPI
-api = OpenHandsCloudAPI()
-api.create_conversation_from_files(
-    "scripts/prompts/arch_conversation.j2",
-    repository="owner/repo",
-)
-```
-
-Note: If you are running from elsewhere (e.g., repo root), adjust the path or compute an absolute path, for example:
-
-```python
-from pathlib import Path
-prompt_path = Path(__file__).resolve().parent / "scripts" / "prompts" / "arch_conversation.j2"
-# Use: str(prompt_path)
-```
-
+- `scripts/cloud_api.py` - OpenHands Cloud API client library
+- `scripts/llm_conversation.py` - CLI for LLM configuration and conversations
+- `scripts/prompts/` - Jinja2 templates (new_conversation, arch_conversation, etc.)
+- `SCRATCHPAD.md` - Development notes and API documentation
 
 ## Environment Variables
 
-- `OPENHANDS_API_KEY` - Required. Your OpenHands Cloud API key
-- `GITHUB_TOKEN` - Optional. For GitHub issue commenting (automatically provided in GitHub Actions)
-- `LLM_MODEL` - Required for LLM configuration. The model to use
-- `LLM_BASE_URL` - Optional. Custom base URL for LLM API
-- `LLM_API_KEY` - Optional. API key for the LLM provider
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENHANDS_API_KEY` | Yes | Your OpenHands Cloud API key |
+| `OPENHANDS_APP_BASE` | No | Override base URL (default: `https://app.all-hands.dev`) |
+| `GITHUB_TOKEN` | No | For GitHub issue commenting |
+| `LLM_MODEL` | No | The LLM model to use. Required for `configure-llm` command. |
+| `LLM_BASE_URL` | No | Custom LLM API base URL |
+| `LLM_API_KEY` | No | LLM provider API key |
+
+## API Client Methods
+
+### Conversation Management
+- `create_conversation()` - Start a new conversation
+- `list_conversations()` - List all conversations (paginated)
+- `get_conversation()` - Get conversation details
+- `delete_conversation()` - Delete a conversation
+- `start_conversation()` - Start the agent loop
+- `stop_conversation()` - Stop a running conversation
+- `send_message()` - Add a message to ongoing conversation
+
+### Events & Trajectory
+- `get_events()` - Get events with filtering/pagination
+- `get_trajectory()` - Get full trajectory
+- `get_last_event_id()` - Get count without full download
+- `download_trajectory_to_file()` - Save trajectory to JSON file
+
+### Settings & User Info
+- `store_llm_settings()` - Configure LLM settings
+- `get_settings()` - Load current settings
+- `get_user_info()` - Get authenticated user info
+
+### Runtime & Workspace
+- `list_files()` - List files in workspace
+- `get_runtime_config()` - Get runtime_id and session_id
+- `get_vscode_url()` - Get VS Code URL
+- `get_web_hosts()` - Get runtime hosts
+- `get_microagents()` - Get loaded microagents
+
+### Utilities
+- `poll_until_stopped()` - Wait for conversation to complete
+- `get_conversation_summary()` - Get status, event count, model, etc.
+- `get_recent_model()` - Extract model from recent events
+- `get_early_model()` - Extract model from early events
+- `get_first_user_message()` - Get the initial prompt
+- `submit_feedback()` - Submit feedback for conversation
+- `post_github_comment()` - Post to GitHub issues
+
+### Runtime Fallback (when main API unavailable)
+- `get_trajectory_via_runtime()` - Get trajectory via runtime URL
+- `get_events_via_runtime()` - Get events via runtime URL
+
+## CLI Usage
+
+```bash
+cd openhands-api-client
+
+# Configure LLM
+python scripts/llm_conversation.py configure-llm
+
+# Start conversation
+python scripts/llm_conversation.py new-conversation \
+  --repository owner/repo --branch main --poll
+
+# Combined
+python scripts/llm_conversation.py configure-and-start --repository owner/repo --poll
+```
 
 ## Dependencies
 
-- `requests` - For HTTP API calls
-- `jinja2` - For template rendering
+```bash
+pip install requests jinja2
+```
 
-## API Client
+---
 
-The `OpenHandsCloudAPI` class provides methods for:
-- `store_llm_settings()` - Configure LLM settings
-- `create_conversation()` - Start new conversations
-- `get_conversation()` - Get conversation status
-- `get_trajectory()` - Get conversation event history
-- `poll_until_stopped()` - Wait for conversation to stop
-- `post_github_comment()` - Post comments to GitHub issues
+## Curl Examples
 
-
-# OpenHands Cloud API – Examples
-
-This is a compact set of examples and notes for playing with the OpenHands Cloud API.
+This section provides curl examples for debugging or raw HTTP access.
 
 No credentials are included here. Throughout, use:
 - Authorization header: `Authorization: Bearer $OPENHANDS_API_KEY`
