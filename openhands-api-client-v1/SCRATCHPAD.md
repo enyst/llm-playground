@@ -144,11 +144,13 @@ These run at the `AGENT_SERVER` URL from sandbox's `exposed_urls`:
 - [ ] Delete app conversation (`DELETE /api/v1/app-conversations/{id}`)
 - [ ] Delete sandbox (`DELETE /api/v1/sandboxes/{id}`)
 
-### Phase 3: Agent Server Integration
-- [ ] Get agent server URL from sandbox's `exposed_urls`
-- [ ] Download trajectory (`GET /api/v1/app-conversations/{id}/download`)
-- [ ] Download/upload files via Agent Server
-- [ ] Bash command execution via Agent Server
+### Phase 3: Agent Server Integration ✅ COMPLETE
+- [x] Get agent server URL from conversation's `conversation_url` (strip path) 
+- [x] Bash command execution (`POST /api/bash/execute_bash_command`)
+- [x] File download via bash (`cat` command workaround)
+- [x] File upload via bash (`echo > file` workaround)
+- [ ] Download trajectory (`GET /api/v1/app-conversations/{id}/download`) - returns 500
+- [ ] Native file upload/download - path encoding issues with FastAPI
 
 ### Phase 4: Utilities
 - [ ] Conversation summary
@@ -205,10 +207,22 @@ These run at the `AGENT_SERVER` URL from sandbox's `exposed_urls`:
 ### Test Conversation (2026-01-27)
 - **Conversation ID**: `bb6a1b39c0d44d4db931e53d59897c77`
 - **Sandbox ID**: `22Cnn1FqUu17shZhJ7b5Ka`
+- **Agent Server URL**: `https://<random>.prod-runtime.all-hands.dev`
+- **Session API Key**: (from conversation's `session_api_key` field)
 - **Message**: "Hello! This is a V1 API test..."
 - **Response**: "Hello! I can see your message loud and clear, and I'm ready to help."
 - **Title** (set by agent): "✅ V1 API Greeting Confirmation Test"
 - **Cost**: ~$0.024
+
+### Agent Server Testing (Phase 3)
+Tested against sandbox `22Cnn1FqUu17shZhJ7b5Ka`:
+
+1. **`ls -la`** → ✅ Listed workspace: `bash_events/`, `conversations/`, `project/`
+2. **`ls -la /workspace/project`** → ✅ Empty project folder (just `.git`)
+3. **Create file via bash** → ✅ Created `V1_API_TEST.md`
+4. **Read file via bash** → ✅ Content verified
+
+Agent Server authentication uses `X-Session-API-Key` header (not `Authorization: Bearer`).
 
 ## Testing Notes
 

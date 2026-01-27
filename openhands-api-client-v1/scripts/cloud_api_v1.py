@@ -229,6 +229,70 @@ def get_start_task(task_id: str):
         return result[0]
     return None
 
+# =============================================================================
+# Agent Server Operations - Phase 3
+# These run against the sandbox's agent server URL, not the app server
+# =============================================================================
+
+def get_agent_server_headers(session_api_key: str):
+    """Get headers for Agent Server requests."""
+    return {
+        "X-Session-API-Key": session_api_key,
+        "Content-Type": "application/json",
+    }
+
+def agent_execute_bash(agent_server_url: str, session_api_key: str, command: str, cwd: str | None = None):
+    """Execute a bash command in the sandbox. ONE API call."""
+    url = f"{agent_server_url}/api/bash/execute_bash_command"
+    headers = get_agent_server_headers(session_api_key)
+    payload = {"command": command, "timeout": 30}
+    if cwd:
+        payload["cwd"] = cwd
+    
+    print(f"[API CALL] POST {url}")
+    print(f"[PAYLOAD] {json.dumps(payload)}")
+    response = httpx.post(url, headers=headers, json=payload, timeout=60)
+    response.raise_for_status()
+    return response.json()
+
+def agent_download_file(agent_server_url: str, session_api_key: str, path: str) -> bytes:
+    """Download a file from the sandbox workspace. ONE API call.
+    
+    Path must be absolute (e.g., /workspace/project/file.txt).
+    Returns raw bytes to support both text and binary files.
+    """
+    # Path must be absolute, keep the leading /
+    if not path.startswith("/"):
+        path = "/" + path
+    url = f"{agent_server_url}/api/file/download{path}"
+    headers = get_agent_server_headers(session_api_key)
+    
+    print(f"[API CALL] GET {url}")
+    response = httpx.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
+    return response.content
+
+def agent_upload_file(agent_server_url: str, session_api_key: str, path: str, content: str):
+    """Upload a file to the sandbox workspace. ONE API call.
+    
+    Uses multipart form upload as required by the Agent Server.
+    """
+    # Path must be absolute in the URL
+    if not path.startswith("/"):
+        path = "/" + path
+    url = f"{agent_server_url}/api/file/upload{path}"
+    headers = {"X-Session-API-Key": session_api_key}  # No Content-Type for multipart
+    
+    # Create multipart form data with actual filename
+    filename = os.path.basename(path)
+    files = {"file": (filename, content.encode(), "text/plain")}
+    
+    print(f"[API CALL] POST {url}")
+    print(f"[CONTENT LENGTH] {len(content)} chars")
+    response = httpx.post(url, headers=headers, files=files, timeout=30)
+    response.raise_for_status()
+    return response.json() if response.text else {"success": True}
+
 
 # =============================================================================
 # Main - Test ONE endpoint at a time
@@ -344,6 +408,47 @@ if __name__ == "__main__":
             exit(1)
         run_test(f"Get Start Task {arg1}", get_start_task, arg1)
     
+    # === Agent Server Operations (Phase 3) ===
+    # These require: agent_server_url and session_api_key from a RUNNING sandbox
+    elif test_name == "agent_bash":
+        # Usage: agent_bash <agent_server_url> <session_api_key> <command>
+        if len(sys.argv) < 5:
+            print("ERROR: agent_bash <agent_server_url> <session_api_key> <command>")
+            exit(1)
+        agent_url = sys.argv[2]
+        session_key = sys.argv[3]
+        command = sys.argv[4]
+        run_test(f"Execute Bash: {command}", agent_execute_bash, agent_url, session_key, command)
+    
+    elif test_name == "agent_download":
+        # Usage: agent_download <agent_server_url> <session_api_key> <path>
+        if len(sys.argv) < 5:
+            print("ERROR: agent_download <agent_server_url> <session_api_key> <path>")
+            exit(1)
+        agent_url = sys.argv[2]
+        session_key = sys.argv[3]
+        path = sys.argv[4]
+        result = run_test(f"Download File: {path}", agent_download_file, agent_url, session_key, path)
+        if result:
+            print(f"\n--- File Content ({len(result)} bytes) ---")
+            # Try to decode as UTF-8, show hex preview for binary
+            try:
+                text = result.decode("utf-8")
+                print(text[:2000] if len(text) > 2000 else text)
+            except UnicodeDecodeError:
+                print(f"[Binary file, first 100 bytes hex]: {result[:100].hex()}")
+    
+    elif test_name == "agent_upload":
+        # Usage: agent_upload <agent_server_url> <session_api_key> <path> <content>
+        if len(sys.argv) < 6:
+            print("ERROR: agent_upload <agent_server_url> <session_api_key> <path> <content>")
+            exit(1)
+        agent_url = sys.argv[2]
+        session_key = sys.argv[3]
+        path = sys.argv[4]
+        content = sys.argv[5]
+        run_test(f"Upload File: {path}", agent_upload_file, agent_url, session_key, path, content)
+    
     else:
         print(f"Unknown test: {test_name}")
         print("\nRead Operations:")
@@ -355,3 +460,8 @@ if __name__ == "__main__":
         print("  resume_sandbox <sandbox_id>")
         print("  pause_sandbox <sandbox_id>")
         print("  download_trajectory <conv_id> [output_file]")
+        print("  get_start_task <task_id>")
+        print("\nAgent Server Operations (Phase 3):")
+        print("  agent_bash <agent_server_url> <session_api_key> <command>")
+        print("  agent_download <agent_server_url> <session_api_key> <path>")
+        print("  agent_upload <agent_server_url> <session_api_key> <path> <content>")
