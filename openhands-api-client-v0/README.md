@@ -88,7 +88,7 @@ print(f"Events: {summary['event_count']}, Model: {summary['model']}")
 ## CLI Usage
 
 ```bash
-cd openhands-api-client
+cd openhands-api-client-v0
 
 # Configure LLM
 python scripts/llm_conversation.py configure-llm
