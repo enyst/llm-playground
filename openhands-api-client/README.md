@@ -38,7 +38,7 @@ print(f"Events: {summary['event_count']}, Model: {summary['model']}")
 | `OPENHANDS_API_KEY` | Yes | Your OpenHands Cloud API key |
 | `OPENHANDS_APP_BASE` | No | Override base URL (default: `https://app.all-hands.dev`) |
 | `GITHUB_TOKEN` | No | For GitHub issue commenting |
-| `LLM_MODEL` | For config | The LLM model to use |
+| `LLM_MODEL` | No | The LLM model to use. Required for `configure-llm` command. |
 | `LLM_BASE_URL` | No | Custom LLM API base URL |
 | `LLM_API_KEY` | No | LLM provider API key |
 
@@ -74,7 +74,8 @@ print(f"Events: {summary['event_count']}, Model: {summary['model']}")
 ### Utilities
 - `poll_until_stopped()` - Wait for conversation to complete
 - `get_conversation_summary()` - Get status, event count, model, etc.
-- `get_recent_model()` / `get_early_model()` - Extract model from events
+- `get_recent_model()` - Extract model from recent events
+- `get_early_model()` - Extract model from early events
 - `get_first_user_message()` - Get the initial prompt
 - `submit_feedback()` - Submit feedback for conversation
 - `post_github_comment()` - Post to GitHub issues

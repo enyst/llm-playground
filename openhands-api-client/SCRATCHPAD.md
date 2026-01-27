@@ -23,7 +23,7 @@ Our current client targets V0. This scratchpad focuses on V0 completeness before
   - `feedback.py` - Submit feedback
 
 - **OpenAPI Spec**: `~/repos/oh-docs/openapi/openapi.json` (V0)
-- **Official Docs**: https://docs.openhands.dev/api-reference/
+- **Official Docs**: [https://docs.openhands.dev/api-reference/](https://docs.openhands.dev/api-reference/)
 
 ## V0 API Endpoints - Coverage Status
 
@@ -38,24 +38,29 @@ Our current client targets V0. This scratchpad focuses on V0 completeness before
 | `/api/conversations/{id}/trajectory` | GET | `get_trajectory()` |
 | `/api/settings` | POST | `store_llm_settings()` |
 
+### ✅ Implemented in This PR
+
+| Endpoint | Method | Client Method |
+|----------|--------|--------------|
+| `/api/conversations/{id}` | DELETE | `delete_conversation()` |
+| `/api/conversations/{id}/start` | POST | `start_conversation()` |
+| `/api/conversations/{id}/stop` | POST | `stop_conversation()` |
+| `/api/conversations/{id}/message` | POST | `send_message()` |
+| `/api/conversations/{id}/list-files` | GET | `list_files()` |
+| `/api/conversations/{id}/microagents` | GET | `get_microagents()` |
+| `/api/conversations/{id}/vscode-url` | GET | `get_vscode_url()` |
+| `/api/conversations/{id}/web-hosts` | GET | `get_web_hosts()` |
+| `/api/conversations/{id}/config` | GET | `get_runtime_config()` |
+| `/api/conversations/{id}/submit-feedback` | POST | `submit_feedback()` |
+| `/api/settings` | GET | `get_settings()` |
+| `/api/user/info` | GET | `get_user_info()` |
+
 ### ❌ Not Yet Implemented
 
 | Endpoint | Method | Notes |
 |----------|--------|-------|
-| `/api/conversations/{id}` | DELETE | Delete conversation |
-| `/api/conversations/{id}/start` | POST | Start agent loop |
-| `/api/conversations/{id}/stop` | POST | Stop conversation |
-| `/api/conversations/{id}/message` | POST | Add message to conversation |
-| `/api/conversations/{id}/list-files` | GET | List workspace files |
-| `/api/conversations/{id}/microagents` | GET | Get loaded microagents |
-| `/api/conversations/{id}/vscode-url` | GET | Get VS Code URL |
-| `/api/conversations/{id}/web-hosts` | GET | Get runtime hosts |
-| `/api/conversations/{id}/config` | GET | Get runtime config (runtime_id, session_id) |
 | `/api/conversations/{id}/git/changes` | GET | Get git changes |
 | `/api/conversations/{id}/git/diff` | GET | Get git diff |
-| `/api/conversations/{id}/submit-feedback` | POST | Submit feedback |
-| `/api/settings` | GET | Load current settings |
-| `/api/user/info` | GET | Get user info |
 | `/api/user/repositories` | GET | List user repositories |
 | `/api/user/installations` | GET | List git provider installations |
 | `/api/secrets` | GET/POST/DELETE | Manage secrets |
@@ -142,18 +147,26 @@ Simplified representation of events for export/analysis.
 
 ## TODO List
 
-- [ ] Add runtime URL fallback support to client
-- [ ] Add `get_settings()` method
-- [ ] Add `get_user_info()` method
-- [ ] Add `delete_conversation()` method
-- [ ] Add `start_conversation()` and `stop_conversation()` methods
-- [ ] Add `send_message()` method for ongoing conversations
-- [ ] Add `list_files()` method
-- [ ] Add `get_runtime_config()` method
-- [ ] Create trajectory download prompt for agents
-- [ ] Document trajectory summarization workflow
-- [ ] Update README with new methods
+### ✅ Completed
+- [x] Add runtime URL fallback support to client
+- [x] Add `get_settings()` method
+- [x] Add `get_user_info()` method
+- [x] Add `delete_conversation()` method
+- [x] Add `start_conversation()` and `stop_conversation()` methods
+- [x] Add `send_message()` method for ongoing conversations
+- [x] Add `list_files()` method
+- [x] Add `get_runtime_config()` method
+- [x] Create trajectory download prompt for agents
+- [x] Document trajectory summarization workflow
+- [x] Update README with new methods
+
+### 📋 Remaining
+- [ ] Add git/changes and git/diff endpoints
+- [ ] Add user/repositories and user/installations endpoints
+- [ ] Add secrets management endpoints
 - [ ] Add examples for common workflows
+- [ ] Consider streaming support for large event downloads
+- [ ] Add auto-detection of V1 vs V0 conversations
 
 ## Questions to Resolve
 
