@@ -22,6 +22,7 @@ V1 uses a **two-tier architecture**:
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │  Agent Server (dynamic URL per sandbox)                     │
+│  - Conversation event search/count                          │
 │  - File upload/download                                     │
 │  - Bash command execution                                   │
 │  - VS Code access                                           │
@@ -56,6 +57,9 @@ python scripts/cloud_api_v1.py count_conversations
 python scripts/cloud_api_v1.py get_user
 python scripts/cloud_api_v1.py search_sandboxes
 python scripts/cloud_api_v1.py search_events <conversation_id>
+python scripts/cloud_api_v1.py agent_search_events <agent_server_url> <session_api_key> <conversation_id>
+python scripts/cloud_api_v1.py agent_count_events <agent_server_url> <session_api_key> <conversation_id>
+
 ```
 
 ## Files
@@ -96,13 +100,22 @@ python scripts/cloud_api_v1.py search_events <conversation_id>
 | POST | `/{id}/resume` | Resume sandbox |
 | DELETE | `/{id}` | Delete sandbox |
 
-### Events (`/api/v1/conversation/{id}/events/`)
+### Events (App Server) (`/api/v1/conversation/{id}/events/`)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/search` | Search events with filters |
 | GET | `/count` | Count events |
 | GET | `?id=...` | Batch get events |
+
+### Events (Agent Server) (`/api/conversations/{id}/events/`)
+
+Use the sandbox `AGENT_SERVER` URL and the `X-Session-API-Key` header.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/search` | Search events with filters |
+| GET | `/count` | Count events |
 
 ### Users (`/api/v1/users/`)
 
@@ -112,13 +125,19 @@ python scripts/cloud_api_v1.py search_events <conversation_id>
 
 ## Authentication
 
-All endpoints use Bearer token authentication:
+App Server endpoints use Bearer token authentication:
 
 ```
 Authorization: Bearer sk-oh-your-api-key
 ```
 
-Same API key works for both V0 and V1 endpoints.
+Agent Server endpoints use the session API key and the `X-Session-API-Key` header:
+
+```
+X-Session-API-Key: <session_api_key>
+```
+
+Same API key works for both V0 and V1 app server endpoints.
 
 ## Status
 

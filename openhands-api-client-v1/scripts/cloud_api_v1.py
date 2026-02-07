@@ -127,6 +127,42 @@ def count_events(conversation_id: str):
     return response.json()
 
 # =============================================================================
+# Agent Server Events
+# =============================================================================
+
+def agent_search_events(
+    agent_server_url: str,
+    session_api_key: str,
+    conversation_id: str,
+    limit: int = 1,
+):
+    """Search events for a conversation via agent server. ONE API call."""
+    url = f"{agent_server_url}/api/conversations/{conversation_id}/events/search"
+    params = {"limit": limit}
+    headers = get_agent_server_headers(session_api_key)
+
+    print(f"[API CALL] GET {url} params={params}")
+    response = httpx.get(url, headers=headers, params=params, timeout=30)
+    response.raise_for_status()
+    return response.json()
+
+
+def agent_count_events(
+    agent_server_url: str,
+    session_api_key: str,
+    conversation_id: str,
+):
+    """Count events for a conversation via agent server. ONE API call."""
+    url = f"{agent_server_url}/api/conversations/{conversation_id}/events/count"
+    headers = get_agent_server_headers(session_api_key)
+
+    print(f"[API CALL] GET {url}")
+    response = httpx.get(url, headers=headers, timeout=30)
+    response.raise_for_status()
+    return response.json()
+
+
+# =============================================================================
 # Users
 # =============================================================================
 
@@ -330,6 +366,8 @@ if __name__ == "__main__":
     # Read tests: search_conversations, count_conversations, get_conversation,
     #             search_sandboxes, search_sandbox_specs, get_user,
     #             search_events, count_events
+    # Agent server tests: agent_search_events, agent_count_events, agent_bash,
+    #                     agent_download, agent_upload
     # Write tests: start_conversation, resume_sandbox, pause_sandbox, download_trajectory
     
     test_name = sys.argv[1] if len(sys.argv) > 1 else "search_conversations"
@@ -410,6 +448,40 @@ if __name__ == "__main__":
     
     # === Agent Server Operations (Phase 3) ===
     # These require: agent_server_url and session_api_key from a RUNNING sandbox
+    elif test_name == "agent_search_events":
+        # Usage: agent_search_events <agent_server_url> <session_api_key> <conversation_id>
+        if len(sys.argv) < 5:
+            print(f"ERROR: {test_name} <agent_server_url> <session_api_key> <conversation_id>")
+            exit(1)
+        agent_url = sys.argv[2]
+        session_key = sys.argv[3]
+        conversation_id = sys.argv[4]
+        run_test(
+            f"Agent Search Events {conversation_id} (limit=5)",
+            agent_search_events,
+            agent_url,
+            session_key,
+            conversation_id,
+            limit=5,
+        )
+
+    elif test_name == "agent_count_events":
+        # Usage: agent_count_events <agent_server_url> <session_api_key> <conversation_id>
+        if len(sys.argv) < 5:
+            print(f"ERROR: {test_name} <agent_server_url> <session_api_key> <conversation_id>")
+            exit(1)
+        agent_url = sys.argv[2]
+        session_key = sys.argv[3]
+        conversation_id = sys.argv[4]
+        run_test(
+            f"Agent Count Events {conversation_id}",
+            agent_count_events,
+            agent_url,
+            session_key,
+            conversation_id,
+        )
+
+
     elif test_name == "agent_bash":
         # Usage: agent_bash <agent_server_url> <session_api_key> <command>
         if len(sys.argv) < 5:
@@ -462,6 +534,8 @@ if __name__ == "__main__":
         print("  download_trajectory <conv_id> [output_file]")
         print("  get_start_task <task_id>")
         print("\nAgent Server Operations (Phase 3):")
+        print("  agent_search_events <agent_server_url> <session_api_key> <conversation_id>")
+        print("  agent_count_events <agent_server_url> <session_api_key> <conversation_id>")
         print("  agent_bash <agent_server_url> <session_api_key> <command>")
         print("  agent_download <agent_server_url> <session_api_key> <path>")
         print("  agent_upload <agent_server_url> <session_api_key> <path> <content>")
