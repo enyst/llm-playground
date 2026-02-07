@@ -24,7 +24,7 @@ V1 introduces a new architecture with two distinct servers:
 |--------|----|----|
 | Conversation IDs | Short alphanumeric | UUIDs (32 hex chars) |
 | Runtime | Direct runtime URLs | Sandboxes with exposed_urls |
-| Events | `/api/conversations/{id}/events` | `/api/v1/conversation/{id}/events/search` |
+| Events | `/api/conversations/{id}/events` | App server: `/api/v1/conversation/{id}/events/search` (agent server: `/api/conversations/{id}/events/...`) |
 | Start conversation | Create + separate start | Single `POST /api/v1/app-conversations` |
 | Trajectory | `/api/conversations/{id}/trajectory` | `/api/v1/app-conversations/{id}/download` (returns zip) |
 
@@ -66,6 +66,8 @@ V1 introduces a new architecture with two distinct servers:
 ## Agent Server Endpoints (within sandbox)
 
 These run at the `AGENT_SERVER` URL from sandbox's `exposed_urls`:
+Requests require the `X-Session-API-Key` header for authentication.
+
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
