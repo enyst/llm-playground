@@ -451,7 +451,7 @@ if __name__ == "__main__":
     elif test_name == "agent_search_events":
         # Usage: agent_search_events <agent_server_url> <session_api_key> <conversation_id>
         if len(sys.argv) < 5:
-            print("ERROR: agent_search_events <agent_server_url> <session_api_key> <conversation_id>")
+            print(f"ERROR: {test_name} <agent_server_url> <session_api_key> <conversation_id>")
             exit(1)
         agent_url = sys.argv[2]
         session_key = sys.argv[3]
