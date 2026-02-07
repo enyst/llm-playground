@@ -125,23 +125,44 @@ Use the sandbox `AGENT_SERVER` URL and the `X-Session-API-Key` header.
 
 ## Authentication
 
-App Server endpoints use Bearer token authentication:
+### App Server (main API)
+
+Uses Bearer token authentication with your OpenHands API key:
 
 ```
 Authorization: Bearer sk-oh-your-api-key
 ```
 
-Agent Server endpoints use the session API key and the `X-Session-API-Key` header:
+### Agent Server (sandbox-specific)
+
+Uses the session API key (obtained from conversation metadata):
 
 ```
 X-Session-API-Key: <session_api_key>
 ```
 
-Same API key works for both V0 and V1 app server endpoints.
+**How to obtain Agent Server credentials:**
+
+1. Get a conversation with a RUNNING sandbox:
+   ```bash
+   python scripts/cloud_api_v1.py get_conversation <conversation_id>
+   ```
+
+2. Extract from the response:
+   - `conversation_url`: The agent server base URL (e.g., `https://xyz.prod-runtime.all-hands.dev/api/conversations/...`)
+   - `session_api_key`: The authentication key for Agent Server requests
+
+3. The Agent Server URL is the hostname from `conversation_url` (strip the path):
+   ```
+   conversation_url: https://xyz.prod-runtime.all-hands.dev/api/conversations/abc123
+   agent_server_url: https://xyz.prod-runtime.all-hands.dev
+   ```
+
+**Note:** `conversation_url` and `session_api_key` are only available when `sandbox_status` is `RUNNING`. If the sandbox is `PAUSED`, resume it first.
 
 ## Status
 
 - ✅ Phase 1: Read operations (complete)
-- 🚧 Phase 2: Write operations (in progress)
-- 📋 Phase 3: Agent Server integration
+- ✅ Phase 2: Write operations (complete)
+- ✅ Phase 3: Agent Server integration (complete)
 - 📋 Phase 4: Utilities
